@@ -18,13 +18,18 @@ public class CensusAnalyser {
     }
 
     public int loadStateCensusData(String csvFilePath) throws CensusAnalyserException {
+        return this.loadCensusData(csvFilePath,StateCensusCSV.class);
+    }
+
+    private<E> int loadCensusData(String csvFilePath, Class<E> censusCSVClass) throws CensusAnalyserException {
         try (Reader reader = Files.newBufferedReader(Paths.get(csvFilePath));) {
             ICSVBuilder csvBuilder = CSVBuilderFactory.createCSVBuilder();
-            Iterator<CensusDAO> csvFileIterator = csvBuilder.getCSVFileIterator(reader, StateCensusCSV.class);
-            while (csvFileIterator.hasNext()){
-                this.censusList.add(new CensusDAO(csvFileIterator.next()));
-            }
-            return censusList.size();
+            Iterator<E> csvIterator = csvBuilder.getCSVFileIterator(reader,censusCSVClass);
+            Iterable<E> csvIterable = () -> csvIterator;
+            StreamSupport.stream(csvIterable.spliterator(),false)
+                    .map(StateCensusCSV.class::cast)
+                    .forEach(censusCSV -> censusStateMap.put(censusCSV.state,new CensusDAO(censusCSV)));
+            return censusStateMap.size();
         } catch (IOException e) {
             throw new CensusAnalyserException(e.getMessage(),
                     CensusAnalyserException.ExceptionType.CENSUS_FILE_PROBLEM);
